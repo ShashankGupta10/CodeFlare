@@ -1,6 +1,14 @@
 package main
-import "fmt"
+
+import (
+	"codeflare/api"
+	"flag"
+	"log"
+)
 
 func main() {
-    fmt.Println("Hello, World!")
+	addr := flag.String("addr", ":8080", "server port address")
+	flag.Parse()
+	svr := api.NewServer(*addr)
+	log.Fatal(svr.Run())
 }
