@@ -1,4 +1,4 @@
-package services
+package main
 
 import (
 	"encoding/json"
@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"codeflare/internal/models"
@@ -56,3 +57,48 @@ func ValidateRepoUrl(url string) error {
 
 	return nil
 }
+
+func GetFilePaths(repoPath string) ([]string, error) {
+
+	// DFS in development??? 😱
+	var filePaths []string
+	q := []string{repoPath}
+
+	for len(q) > 0 {
+		curr := q[0]
+		q = q[1:]
+
+		data, err := os.ReadDir(curr)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, item := range data {
+			fullpath := filepath.Join(curr, item.Name())
+			// relpath, err := filepath.Rel(repoPath, fullpath)
+			// if err != nil {
+			// 	return nil, err
+			// }
+			// relpath = strings.ReplaceAll(relpath, "\\", "/")
+			if item.IsDir() {
+				q = append(q, fullpath)
+				filePaths = append(filePaths, fullpath+"/")
+			} else {
+				filePaths = append(filePaths, fullpath)
+			}
+		}
+	}
+	return filePaths, nil
+}
+
+// func UploadToS3(projectName, bucketName string, filePaths []string) error {
+// 	client:=s3.S3
+// }
+
+// func main() {
+// 	vals, err := GetFilePaths("./projects/novanity")
+// 	if err != nil {
+// 		fmt.Println(err)
+// 	}
+// 	fmt.Println(vals)
+// }
