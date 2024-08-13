@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -10,6 +11,11 @@ import (
 	"strings"
 
 	"codeflare/internal/models"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/joho/godotenv"
 )
 
 const GIT_API_URL = "https://api.github.com/repos/"
@@ -21,7 +27,7 @@ func GetRepoContent(url, projectName, userId string) (string, error) {
 	}
 	project := models.NewProject(url, userId, projectName)
 
-	cmd := exec.Command("git", "clone", url, "./projects/"+project.Name)
+	cmd := exec.Command("git", "clone", url, "./projects/"+project.ID)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err = cmd.Run()
@@ -81,8 +87,10 @@ func GetFilePaths(repoPath string) ([]string, error) {
 			// }
 			// relpath = strings.ReplaceAll(relpath, "\\", "/")
 			if item.IsDir() {
-				q = append(q, fullpath)
-				filePaths = append(filePaths, fullpath+"/")
+				if item.Name() != ".git" && item.Name() != "bin" {
+					// fmt.Println("dir", item.Name())
+					q = append(q, fullpath+"/")
+				}
 			} else {
 				filePaths = append(filePaths, fullpath)
 			}
@@ -91,14 +99,61 @@ func GetFilePaths(repoPath string) ([]string, error) {
 	return filePaths, nil
 }
 
-// func UploadToS3(projectName, bucketName string, filePaths []string) error {
-// 	client:=s3.S3
-// }
+// projectName, bucketName string, filePaths []string
+func UploadToS3(projectId, bucketName string, filePaths []string) error {
+	if err := godotenv.Load(); err != nil {
+		fmt.Println("load env")
+		return err
+	}
 
-// func main() {
-// 	vals, err := GetFilePaths("./projects/novanity")
-// 	if err != nil {
-// 		fmt.Println(err)
-// 	}
-// 	fmt.Println(vals)
-// }
+	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion("ap-south-1"))
+	if err != nil {
+		fmt.Println("load from cfg")
+		return err
+	}
+
+	client := s3.NewFromConfig(cfg)
+
+	for _, filepath := range filePaths {
+		file, err := os.Open(filepath)
+		if err != nil {
+			return err
+		} else {
+			defer file.Close()
+			_, err := client.PutObject(context.TODO(), &s3.PutObjectInput{
+				Bucket: aws.String("codeflare6969"),
+				Key:    aws.String(filepath),
+				Body:   file,
+			})
+
+			if err != nil {
+				return err
+			}
+		}
+
+	}
+	return nil
+
+}
+
+func main() {
+
+	pid, err := GetRepoContent("https://github.com/sarthak0714/ttt", "temp", "zzz")
+	if err != nil {
+		fmt.Println(err)
+	}
+	// fmt.Println(pid)
+
+	files, err := GetFilePaths("./projects/" + pid)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// fmt.Println(files)
+	er := UploadToS3(pid, "codeflare6969", files)
+	if er != nil {
+		fmt.Println(er)
+	}
+	fmt.Println("Done")
+
+}
