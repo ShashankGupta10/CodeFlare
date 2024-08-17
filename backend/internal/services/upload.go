@@ -1,4 +1,4 @@
-package main
+package services
 
 import (
 	"context"
@@ -14,15 +14,19 @@ import (
 	"codeflare/internal/models"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/joho/godotenv"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 const GIT_API_URL = "https://api.github.com/repos/"
 
-func GetRepoContent(url, projectName, userId string) (string, error) {
+type UploadService struct {
+	S3Client   *s3.Client
+	BucketName string
+}
+
+// Get repo content in temp project folder
+func (us *UploadService) GetRepoContent(url, projectName, userId string) (string, error) {
 	err := ValidateRepoUrl(url)
 	if err != nil {
 		return "", err
@@ -42,6 +46,7 @@ func GetRepoContent(url, projectName, userId string) (string, error) {
 
 }
 
+// helper to valdiate if repo is valid
 func ValidateRepoUrl(url string) error {
 	parts := strings.Split(url, "/")
 	owner := parts[len(parts)-2]
@@ -66,7 +71,8 @@ func ValidateRepoUrl(url string) error {
 	return nil
 }
 
-func GetFilePaths(repoPath string) ([]string, error) {
+// Get File paths of the project
+func (us *UploadService) GetFilePaths(repoPath string) ([]string, error) {
 
 	// DFS in development??? 😱
 	var filePaths []string
@@ -83,14 +89,9 @@ func GetFilePaths(repoPath string) ([]string, error) {
 
 		for _, item := range data {
 			fullpath := filepath.Join(curr, item.Name())
-			// relpath, err := filepath.Rel(repoPath, fullpath)
-			// if err != nil {
-			// 	return nil, err
-			// }
-			// relpath = strings.ReplaceAll(relpath, "\\", "/")
+
 			if item.IsDir() {
 				if item.Name() != ".git" && item.Name() != "bin" {
-					// fmt.Println("dir", item.Name())
 					q = append(q, fullpath+"/")
 				}
 			} else {
@@ -101,20 +102,20 @@ func GetFilePaths(repoPath string) ([]string, error) {
 	return filePaths, nil
 }
 
-// projectName, bucketName string, filePaths []string
-func UploadToS3(projectId, bucketName string, filePaths []string) error {
-	if err := godotenv.Load(); err != nil {
-		fmt.Println("load env")
-		return err
-	}
+// Uplaod  repo to s3 using the filepaths
+func (us *UploadService) UploadToS3(projectId, bucketName string, filePaths []string) error {
+	// if err := godotenv.Load(); err != nil {
+	// 	fmt.Println("load env")
+	// 	return err
+	// }
 
-	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion("ap-south-1"))
-	if err != nil {
-		fmt.Println("load from cfg")
-		return err
-	}
+	// cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion("ap-south-1"))
+	// if err != nil {
+	// 	fmt.Println("load from cfg")
+	// 	return err
+	// }
 
-	client := s3.NewFromConfig(cfg)
+	client := us.S3Client
 
 	for _, filepath := range filePaths {
 		file, err := os.Open(filepath)
@@ -124,7 +125,7 @@ func UploadToS3(projectId, bucketName string, filePaths []string) error {
 			defer file.Close()
 			fmt.Println(strings.Replace(filepath, "projects/", "", 1))
 			_, err := client.PutObject(context.TODO(), &s3.PutObjectInput{
-				Bucket: aws.String("codeflare6969"),
+				Bucket: aws.String(us.BucketName),
 				Key:    aws.String(strings.Replace(filepath, "projects/", "", 1)),
 				Body:   file,
 			})
@@ -135,6 +136,8 @@ func UploadToS3(projectId, bucketName string, filePaths []string) error {
 		}
 
 	}
+
+	UploadToQueue(projectId)
 	return nil
 
 }
@@ -152,7 +155,7 @@ func UploadToQueue(id string) error {
 	defer ch.Close()
 
 	q, err := ch.QueueDeclare(
-		"upoad-queue",
+		"build-queue",
 		true,
 		true,
 		false,
@@ -167,8 +170,8 @@ func UploadToQueue(id string) error {
 	defer cncl()
 
 	err = ch.PublishWithContext(ctx,
-		"",
-		q.Name,
+		"",     //
+		q.Name, // name
 		false,
 		false,
 		amqp.Publishing{
@@ -203,7 +206,7 @@ func Consume() {
 		false, // exclusive
 		false, // no-local
 		false, // no-wait
-		nil,
+		nil,   // opts
 	)
 	if err != nil {
 		fmt.Println(err)
