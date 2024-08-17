@@ -120,9 +120,10 @@ func UploadToS3(projectId, bucketName string, filePaths []string) error {
 			return err
 		} else {
 			defer file.Close()
+			fmt.Println(strings.Replace(filepath, "projects/", "", 1))
 			_, err := client.PutObject(context.TODO(), &s3.PutObjectInput{
 				Bucket: aws.String("codeflare6969"),
-				Key:    aws.String(filepath),
+				Key:    aws.String(strings.Replace(filepath, "projects/", "", 1)),
 				Body:   file,
 			})
 
@@ -136,24 +137,24 @@ func UploadToS3(projectId, bucketName string, filePaths []string) error {
 
 }
 
-func main() {
+// func main() {
 
-	pid, err := GetRepoContent("https://github.com/sarthak0714/ttt", "temp", "zzz")
-	if err != nil {
-		fmt.Println(err)
-	}
-	// fmt.Println(pid)
+// 	pid, err := GetRepoContent("https://github.com/sarthak0714/ttt", "temp", "zzz")
+// 	if err != nil {
+// 		fmt.Println(err)
+// 	}
+// 	// fmt.Println(pid)
 
-	files, err := GetFilePaths("./projects/" + pid)
-	if err != nil {
-		fmt.Println(err)
-	}
+// 	files, err := GetFilePaths("./projects/" + pid)
+// 	if err != nil {
+// 		fmt.Println(err)
+// 	}
 
-	// fmt.Println(files)
-	er := UploadToS3(pid, "codeflare6969", files)
-	if er != nil {
-		fmt.Println(er)
-	}
-	fmt.Println("Done")
+// 	// fmt.Println(files)
+// 	er := UploadToS3(pid, "codeflare6969", files)
+// 	if er != nil {
+// 		fmt.Println(er)
+// 	}
+// 	fmt.Println("Done")
 
-}
+// }
