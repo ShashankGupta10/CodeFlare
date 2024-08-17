@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"codeflare/internal/models"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/joho/godotenv"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 const GIT_API_URL = "https://api.github.com/repos/"
@@ -136,6 +138,102 @@ func UploadToS3(projectId, bucketName string, filePaths []string) error {
 	return nil
 
 }
+
+func UploadToQueue(id string) error {
+	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	ch, err := conn.Channel()
+	if err != nil {
+		return err
+	}
+	defer ch.Close()
+
+	q, err := ch.QueueDeclare(
+		"upoad-queue",
+		true,
+		true,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+
+	ctx, cncl := context.WithTimeout(context.Background(), time.Second*5)
+	defer cncl()
+
+	err = ch.PublishWithContext(ctx,
+		"",
+		q.Name,
+		false,
+		false,
+		amqp.Publishing{
+			ContentType: "text/plain",
+			Body:        []byte(id),
+		})
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
+func Consume() {
+	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+	if err != nil {
+		fmt.Println(err)
+
+	}
+	defer conn.Close()
+	ch, err := conn.Channel()
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer ch.Close()
+
+	msgs, err := ch.Consume(
+		"upoad-queue",
+		"",    // consumer
+		true,  // auto-ack
+		false, // exclusive
+		false, // no-local
+		false, // no-wait
+		nil,
+	)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	go func() {
+		for msg := range msgs {
+			fmt.Println("rcvd ", string(msg.Body))
+		}
+	}()
+
+}
+
+// func main() {
+// 	e := UploadToQueue("zzzzzzzz")
+// 	if e != nil {
+// 		fmt.Println(e)
+// 	}
+// 	e = UploadToQueue("zzzzzaaaazzz")
+// 	if e != nil {
+// 		fmt.Println(e)
+// 	}
+
+// 	e = UploadToQueue("zzzzzaasdasdasdaaazzz")
+// 	if e != nil {
+// 		fmt.Println(e)
+// 	}
+
+// 	Consume()
+// }
 
 // func main() {
 
