@@ -1,22 +1,42 @@
 package config
 
-import "os"
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
+	"github.com/joho/godotenv"
+)
 
 type Config struct {
-	Port      string
-	JWTSecret string
+	DatabaseURL string
+	ServerPort  int
+	LogLevel    string
+	JWTSecret   string
 }
 
-func Load() *Config {
+func LoadConfig() *Config {
+	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	environmentPath := filepath.Join(dir, "./../.env")
+
+	err = godotenv.Load(environmentPath)
+	if err != nil {
+		fmt.Println("Error loading environment file")
+	}
+
+	value, err := strconv.Atoi(os.Getenv("SERVER_PORT"))
+	if err != nil {
+		fmt.Println("Error converting server port to int")
+	}
+	
 	return &Config{
-		Port:      getEnv("PORT", "8080"),
-		JWTSecret: getEnv("JWT_SECRET", "shhhhh"),
+		DatabaseURL: os.Getenv("DATABASE_URL"),
+		ServerPort:  value,
+		LogLevel:    os.Getenv("LOG_LEVEL"),
+		JWTSecret:   os.Getenv("JWT_SECRET"),
 	}
-}
-
-func getEnv(key, def string) string {
-	if val, yes := os.LookupEnv(key); yes {
-		return val
-	}
-	return def
 }
