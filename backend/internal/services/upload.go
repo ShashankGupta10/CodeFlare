@@ -105,15 +105,15 @@ func UploadToS3(projectId, bucketName string, filePaths []string) error {
 		fmt.Println("load env")
 		return err
 	}
-
+	fmt.Println("HERE AFTER ENV")
 	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion("ap-south-1"))
 	if err != nil {
 		fmt.Println("load from cfg")
 		return err
 	}
-
+	fmt.Println("HERE AFTER CFG")
 	client := s3.NewFromConfig(cfg)
-
+	fmt.Println("HERE AFTER CLIENT")
 	for _, filepath := range filePaths {
 		file, err := os.Open(filepath)
 		if err != nil {
@@ -142,14 +142,14 @@ func main() {
 	if err != nil {
 		fmt.Println(err)
 	}
-	// fmt.Println(pid)
+	fmt.Println("HERE BRO")
 
 	files, err := GetFilePaths("./projects/" + pid)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	// fmt.Println(files)
+	fmt.Println("HERE AGAIN BRO")
 	er := UploadToS3(pid, "codeflare6969", files)
 	if er != nil {
 		fmt.Println(er)
