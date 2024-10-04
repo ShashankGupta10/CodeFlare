@@ -23,5 +23,6 @@ func main() {
 	
 	e := echo.New()
 	e.GET("/", h.HomeHandler)
+	e.POST("/deploy", h.DeployHandler)
 	e.Logger.Fatal(e.Start(fmt.Sprintf(":%d", cfg.ServerPort)))
 }
