@@ -3,7 +3,6 @@ package services
 import (
 	"codeflare/internal/adapters/repository"
 	"codeflare/internal/core/ports"
-	"fmt"
 )
 
 type deployService struct {
@@ -14,12 +13,8 @@ func NewDeployService(db *repository.PGStore) port.DeployService {
 	return &deployService{db: db}
 }
 
-func (s *deployService) Deploy() {
-	fmt.Println("hello i am here in deploy")
-}
-
 func (s *deployService) ValidateURL(url string) error {
-	return fmt.Errorf("")
+	return nil
 }
 
 func (s *deployService) CloneRepo(url string) (string, error) {

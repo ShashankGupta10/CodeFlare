@@ -1,7 +1,6 @@
 package port 
 
 type DeployService interface {
-	Deploy() 
 	ValidateURL(string) error
 	CloneRepo(string) (string, error)
 	BuildRepo(string) (string, error)
