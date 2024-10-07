@@ -32,30 +32,47 @@ func (s *ApiHandler) DeployHandler(c echo.Context) error {
 
 	repoUrl := jsonBody["repo_url"]
 	repoUrlStr := fmt.Sprint(repoUrl)
+
+	alreadyDeployed, alreadyDeployedErr := s.DeployService.AlreadyDeployed(repoUrlStr)
+	if alreadyDeployedErr != nil {
+		return alreadyDeployedErr
+	}
+	if alreadyDeployed {
+		return fmt.Errorf("repo already deployed")
+	}
+
 	validateErr := s.DeployService.ValidateURL(repoUrlStr)
 	if validateErr != nil {
 		return validateErr
 	}
+
+	fmt.Println("Validated URL")
 
 	dir, cloneErr := s.DeployService.CloneRepo(repoUrlStr)
 	if cloneErr != nil {
 		return cloneErr
 	}
 
-	buildDir, buildErr := s.DeployService.BuildRepo(dir)
+	fmt.Println("Cloned repo")
+
+	_, buildErr := s.DeployService.BuildRepo(dir)
 	if buildErr != nil {
 		return buildErr
 	}
 
-	url, uploadErr := s.DeployService.UploadToS3(buildDir)
+	fmt.Println("Repo built successfully")
+
+	url, uploadErr := s.DeployService.UploadToS3(dir)
 	if uploadErr != nil {
 		return uploadErr
 	}
-	fmt.Print(url)
+	fmt.Print("UPLOAD TO S3 success", url)
 
 	addDNSRecordErr := s.DeployService.AddDNSRecord(url)
 	if addDNSRecordErr != nil {
 		return addDNSRecordErr
 	}
-	return c.String(200, url)
+
+	fmt.Println("ADDED SUCCESS")
+	return c.String(200, "hello")
 }

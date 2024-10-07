@@ -17,8 +17,12 @@ func main() {
 		return
 	}
 
+	migrateErr := db.AutoMigrate()
+	if migrateErr != nil {
+		fmt.Println("migrate err")
+		return 
+	}
 	deployService := services.NewDeployService(db)
-
 	h := handlers.NewApiHandler(deployService)
 	
 	e := echo.New()

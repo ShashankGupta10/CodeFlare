@@ -20,6 +20,41 @@ import (
 
 const GIT_API_URL = "https://api.github.com/repos/"
 
+func GetFilePaths(repoPath string) ([]string, error) {
+
+	// DFS in development??? 😱
+	var filePaths []string
+	q := []string{repoPath}
+
+	for len(q) > 0 {
+		curr := q[0]
+		q = q[1:]
+
+		data, err := os.ReadDir(curr)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, item := range data {
+			fullpath := filepath.Join(curr, item.Name())
+			// relpath, err := filepath.Rel(repoPath, fullpath)
+			// if err != nil {
+			// 	return nil, err
+			// }
+			// relpath = strings.ReplaceAll(relpath, "\\", "/")
+			if item.IsDir() {
+				if item.Name() != ".git" && item.Name() != "bin" {
+					// fmt.Println("dir", item.Name())
+					q = append(q, fullpath+"/")
+				}
+			} else {
+				filePaths = append(filePaths, fullpath)
+			}
+		}
+	}
+	return filePaths, nil
+}
+
 func GetRepoContent(url, projectName, userId string) (string, error) {
 	err := ValidateRepoUrl(url)
 	if err != nil {
@@ -64,40 +99,7 @@ func ValidateRepoUrl(url string) error {
 	return nil
 }
 
-func GetFilePaths(repoPath string) ([]string, error) {
 
-	// DFS in development??? 😱
-	var filePaths []string
-	q := []string{repoPath}
-
-	for len(q) > 0 {
-		curr := q[0]
-		q = q[1:]
-
-		data, err := os.ReadDir(curr)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, item := range data {
-			fullpath := filepath.Join(curr, item.Name())
-			// relpath, err := filepath.Rel(repoPath, fullpath)
-			// if err != nil {
-			// 	return nil, err
-			// }
-			// relpath = strings.ReplaceAll(relpath, "\\", "/")
-			if item.IsDir() {
-				if item.Name() != ".git" && item.Name() != "bin" {
-					// fmt.Println("dir", item.Name())
-					q = append(q, fullpath+"/")
-				}
-			} else {
-				filePaths = append(filePaths, fullpath)
-			}
-		}
-	}
-	return filePaths, nil
-}
 
 // projectName, bucketName string, filePaths []string
 func UploadToS3(projectId, bucketName string, filePaths []string) error {

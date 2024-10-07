@@ -1,6 +1,7 @@
 package port 
 
 type DeployService interface {
+	AlreadyDeployed(string) (bool, error)
 	ValidateURL(string) error
 	CloneRepo(string) (string, error)
 	BuildRepo(string) (string, error)
@@ -8,6 +9,6 @@ type DeployService interface {
 	AddDNSRecord(string) (error)
 }
 
-type PingService interface {
-	SayHello()
+type Store interface {
+	DoSomething()
 }
