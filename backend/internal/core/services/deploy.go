@@ -3,10 +3,12 @@ package services
 import (
 	"bytes"
 	"codeflare/internal/adapters/repository"
+	"codeflare/internal/config"
 	"codeflare/internal/core/ports"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"mime"
 	"net/http"
 	"os"
@@ -129,7 +131,7 @@ func (s *deployService) BuildRepo(dir string) (string, error) {
 	return string(buildOutput), nil
 }
 
-func (s *deployService) UploadToS3(dir string) (string, error) {
+func (s *deployService) UploadToS3(dir string, projectName string) (string, error) {
 	// Load AWS configuration
 	fmt.Println("In upload func", dir)
 	cfg, err := awsConfig.LoadDefaultConfig(context.TODO(), awsConfig.WithRegion("ap-south-1"))
@@ -142,7 +144,7 @@ func (s *deployService) UploadToS3(dir string) (string, error) {
 	// Create S3 service client
 	svc := s3.NewFromConfig(cfg)
 
-	bucket := "swipe-assignment" // Replace with your desired bucket name
+	bucket := projectName + ".nymbus.xyz"
 	fmt.Println("BUCKET NAME GIVEN")
 	// Check if the bucket exists, if not, create it
 	_, err = svc.HeadBucket(context.TODO(), &s3.HeadBucketInput{
@@ -279,18 +281,20 @@ func (s *deployService) UploadToS3(dir string) (string, error) {
 }
 
 // Function to add a DNS record using Cloudflare API
-func (s *deployService) AddDNSRecord(url string) error {
+func (s *deployService) AddDNSRecord(url string, projectName string) error {
 	// Cloudflare API URL and token (replace with your actual API token and Zone ID)
-	apiToken := "your-cloudflare-api-token"
-	zoneID := "your-cloudflare-zone-id"
 
+	cfg := config.LoadConfig()
+	apiToken := cfg.CloudflareApiToken
+	zoneID := cfg.CloudflareZoneId
+	fmt.Println(apiToken, zoneID, url, projectName, strings.Join(strings.Split(url, "/")[2:], "/"))
 	// DNS Record data
 	dnsRecord := map[string]interface{}{
-		"type":    "A",                        // Adjust based on record type (e.g., A, CNAME, MX)
-		"name":    "subdomain.yourdomain.com", // DNS name you want to add
-		"content": "192.0.2.1",                // The IP or content of the DNS record
-		"ttl":     120,                        // TTL in seconds
-		"proxied": false,                      // Whether to enable Cloudflare proxying
+		"type":    "CNAME",                     // Adjust based on record type (e.g., A, CNAME, MX)
+		"name":    projectName+".nymbus.xyz", // DNS name you want to add
+		"content": strings.Join(strings.Split(url, "/")[2:], "/"),
+		"ttl":     120,   // TTL in seconds
+		"proxied": false, // Whether to enable Cloudflare proxying
 	}
 
 	// Serialize the DNS record to JSON
@@ -317,16 +321,18 @@ func (s *deployService) AddDNSRecord(url string) error {
 	}
 	defer resp.Body.Close()
 
-	// Read the response and check for success
-	body := new(strings.Builder)
-	// _, _ = body.(resp.Body)
+	// Check if the request was successful
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("failed to add DNS record, status: %d, body: %s", resp.StatusCode, string(bodyBytes))
+	}
 
-	// if resp.StatusCode != http.StatusOK {
-	// 	return fmt.Errorf("failed to add DNS record: %s", body.String())
-	// }
+	// Read and print the response body
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("error reading response body: %w", err)
+	}
 
-	fmt.Print(body)
-
-	fmt.Println("DNS record added successfully:", body.String())
+	fmt.Println("DNS record added successfully:", string(bodyBytes))
 	return nil
 }

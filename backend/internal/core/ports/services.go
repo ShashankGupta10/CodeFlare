@@ -5,8 +5,8 @@ type DeployService interface {
 	ValidateURL(string) error
 	CloneRepo(string) (string, error)
 	BuildRepo(string) (string, error)
-	UploadToS3(string) (string, error)
-	AddDNSRecord(string) (error)
+	UploadToS3(string, string) (string, error)
+	AddDNSRecord(string, string) (error)
 }
 
 type Store interface {

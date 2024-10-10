@@ -13,6 +13,8 @@ type Config struct {
 	ServerPort  int
 	LogLevel    string
 	JWTSecret   string
+	CloudflareApiToken string
+	CloudflareZoneId string
 }
 
 func LoadConfig() *Config {
@@ -38,5 +40,7 @@ func LoadConfig() *Config {
 		ServerPort:  value,
 		LogLevel:    os.Getenv("LOG_LEVEL"),
 		JWTSecret:   os.Getenv("JWT_SECRET"),
+		CloudflareApiToken: os.Getenv("CLOUDFLARE_API_TOKEN"),
+		CloudflareZoneId: os.Getenv("CLOUDFLARE_ZONE_ID"),
 	}
 }

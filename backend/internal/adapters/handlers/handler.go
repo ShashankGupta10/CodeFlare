@@ -2,9 +2,9 @@ package handlers
 
 import (
 	"codeflare/internal/core/ports"
-	// "codeflare/internal/core/services"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 )
@@ -62,15 +62,16 @@ func (s *ApiHandler) DeployHandler(c echo.Context) error {
 
 	fmt.Println("Repo built successfully")
 
-	url, uploadErr := s.DeployService.UploadToS3(dir)
+	url, uploadErr := s.DeployService.UploadToS3(dir, strings.Split(repoUrlStr, "/")[4])
 	if uploadErr != nil {
 		return uploadErr
 	}
 	fmt.Print("UPLOAD TO S3 success", url)
 
-	addDNSRecordErr := s.DeployService.AddDNSRecord(url)
+	addDNSRecordErr := s.DeployService.AddDNSRecord(url, strings.Split(repoUrlStr, "/")[4])
 	if addDNSRecordErr != nil {
-		return addDNSRecordErr
+		err := fmt.Sprintf("%v", addDNSRecordErr)
+		return c.String(400, err)
 	}
 
 	fmt.Println("ADDED SUCCESS")
