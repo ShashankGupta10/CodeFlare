@@ -1,14 +1,15 @@
-package port 
+package ports
+
+import "codeflare/internal/core/domain"
 
 type DeployService interface {
+	BuildRepo()
+	Deploy()
+	StartCleanupTicker()
 	AlreadyDeployed(string) (bool, error)
-	ValidateURL(string) error
-	CloneRepo(string) (string, error)
-	BuildRepo(string) (string, error)
-	UploadToS3(string, string) (string, error)
-	AddDNSRecord(string, string) (error)
-}
-
-type Store interface {
-	DoSomething()
+	AddDNSRecord(string, string) error
+	DeleteProject(uint) error
+	CreateProject(*domain.Project) (uint, error)
+	QueueBuild(uint)
+	GetProject(uint) (*domain.Project, error)
 }

@@ -1,79 +1,122 @@
 package handlers
 
 import (
+	"codeflare/internal/core/domain"
 	"codeflare/internal/core/ports"
-	"encoding/json"
-	"fmt"
+	"codeflare/pkg/utils"
+	"net/http"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 )
 
 type ApiHandler struct {
-	DeployService port.DeployService
+	DeployService ports.DeployService
 }
 
-func NewApiHandler(deployService port.DeployService) *ApiHandler {
+func NewApiHandler(deployService ports.DeployService) *ApiHandler {
 	return &ApiHandler{
 		DeployService: deployService,
 	}
 }
 
 func (s *ApiHandler) HomeHandler(c echo.Context) error {
-	return c.String(200, "Hello bro")
+	return c.JSON(http.StatusOK, map[string]string{
+		"msg":  "works",
+		"time": time.Now().Format("01-01-2006 15:04:00"),
+	})
 }
 
 func (s *ApiHandler) DeployHandler(c echo.Context) error {
-	jsonBody := make(map[string]interface{})
-	err := json.NewDecoder(c.Request().Body).Decode(&jsonBody)
-	if err != nil {
-		return nil
+	var requestBody struct {
+		RepoURL          string `json:"repo_url"`
+		ProjectDirectory string `json:"project_directory"`
 	}
 
-	repoUrl := jsonBody["repo_url"]
-	repoUrlStr := fmt.Sprint(repoUrl)
+	if err := c.Bind(&requestBody); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid JSON"})
+	}
 
-	alreadyDeployed, alreadyDeployedErr := s.DeployService.AlreadyDeployed(repoUrlStr)
-	if alreadyDeployedErr != nil {
-		return alreadyDeployedErr
+	if requestBody.RepoURL == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid repo_url"})
+	}
+
+	alreadyDeployed, err := s.DeployService.AlreadyDeployed(requestBody.RepoURL)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
 	if alreadyDeployed {
-		return fmt.Errorf("repo already deployed")
+		return c.JSON(http.StatusConflict, map[string]string{"error": "Repo already deployed"})
 	}
 
-	validateErr := s.DeployService.ValidateURL(repoUrlStr)
-	if validateErr != nil {
-		return validateErr
+	if err := utils.ValidateURL(requestBody.RepoURL); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 
-	fmt.Println("Validated URL")
+	// Extract project name from the URL
+	urlParts := strings.Split(requestBody.RepoURL, "/")
+	if len(urlParts) < 5 {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid repo URL format"})
+	}
+	projectName := urlParts[4]
 
-	dir, cloneErr := s.DeployService.CloneRepo(repoUrlStr)
-	if cloneErr != nil {
-		return cloneErr
+	// Clone the repository
+	err = utils.CloneRepo(requestBody.RepoURL)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to clone repository"})
 	}
 
-	fmt.Println("Cloned repo")
-
-	_, buildErr := s.DeployService.BuildRepo(dir)
-	if buildErr != nil {
-		return buildErr
+	project := &domain.Project{
+		Name:             projectName,
+		RepoURL:          requestBody.RepoURL,
+		Status:           domain.NotStarted,
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
+		BuildURL:         "",
+		URL:              "",
+		ProjectDirectory: requestBody.ProjectDirectory,
 	}
 
-	fmt.Println("Repo built successfully")
-
-	url, uploadErr := s.DeployService.UploadToS3(dir, strings.Split(repoUrlStr, "/")[4])
-	if uploadErr != nil {
-		return uploadErr
-	}
-	fmt.Print("UPLOAD TO S3 success", url)
-
-	addDNSRecordErr := s.DeployService.AddDNSRecord(url, strings.Split(repoUrlStr, "/")[4])
-	if addDNSRecordErr != nil {
-		err := fmt.Sprintf("%v", addDNSRecordErr)
-		return c.String(400, err)
+	projectID, err := s.DeployService.CreateProject(project)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to create project"})
 	}
 
-	fmt.Println("ADDED SUCCESS")
-	return c.String(200, "hello")
+	s.DeployService.QueueBuild(projectID)
+
+	return c.JSON(http.StatusAccepted, map[string]interface{}{
+		"message": "Deployment queued",
+		"id":      projectID,
+	})
+}
+
+func (s *ApiHandler) ProjectStatusHandler(c echo.Context) error {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid project ID"})
+	}
+
+	project, err := s.DeployService.GetProject(uint(id))
+	if err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "Project not found"})
+	}
+
+	return c.JSON(http.StatusOK, project)
+}
+
+func (s *ApiHandler) DeleteProjectHandler(c echo.Context) error {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid project ID"})
+	}
+
+	if err := s.DeployService.DeleteProject(uint(id)); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to delete project"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "Project deleted successfully"})
 }

@@ -1,9 +1,17 @@
-package port
+package ports
 
 import (
-	"codeflare/internal/adapters/repository"
+	"codeflare/internal/core/domain"
 )
 
 type Repository interface {
-	NewPGStore(connectionString string) (*repository.PGStore, error)
+	CreateProject(proj *domain.Project) (uint, error)
+	AutoMigrate() error
+	FindRepo(url string) (bool, error)
+	UpdateStatus(id uint, status domain.Status) error
+	GetProject(id uint) (*domain.Project, error)
+	UpdateURL(id uint, url string) error
+	UpdateBuildURL(id uint, url string) error
+	DeleteProject(projectID uint) error
+	GetProjectByName(name string) (*domain.Project, error)
 }
