@@ -23,10 +23,10 @@ func NewPGStore(dsn string) (*PGStore, error) {
 }
 
 func (s *PGStore) AutoMigrate() error {
-	// err := s.db.AutoMigrate(&domain.Project{})
-	// if err != nil {
-	// 	return err
-	// }
+	err := s.db.AutoMigrate(&domain.Project{})
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

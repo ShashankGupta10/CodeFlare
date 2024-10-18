@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/labstack/echo/v4/middleware"
 	"github.com/labstack/echo/v4"
 )
 
@@ -34,6 +35,7 @@ func main() {
 	deployService.StartCleanupTicker()
 
 	e := echo.New()
+	e.Use(middleware.CORS())
 	e.HideBanner = true
 	e.Use(utils.CustomLogger())
 
