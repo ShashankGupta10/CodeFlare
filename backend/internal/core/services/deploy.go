@@ -34,9 +34,10 @@ type deployService struct {
 
 func NewDeployService(db ports.Repository, chsize int) ports.DeployService {
 	return &deployService{
-		db:      db,
-		buildQ:  make(chan uint, chsize),
-		deployQ: make(chan uint, chsize),
+		db:               db,
+		buildQ:           make(chan uint, chsize),
+		deployQ:          make(chan uint, chsize),
+		deployedProjects: make(map[string]time.Time),
 	}
 }
 
@@ -109,19 +110,29 @@ func (s *deployService) Deploy() {
 			fmt.Printf("Error getting project: %v\n", err)
 			continue
 		}
-		fmt.Println("deploying proj:", projectID)
+		fmt.Println("Deploying project:", projectID)
 
-		s.db.UpdateStatus(projectID, domain.Deploying)
+		if err := s.db.UpdateStatus(projectID, domain.Deploying); err != nil {
+			fmt.Printf("Error updating project status to deploying: %v\n", err)
+			continue
+		}
+
 		err = s.deployProject(project)
 		if err != nil {
 			fmt.Printf("Error deploying project: %v\n", err)
-			s.db.UpdateStatus(projectID, domain.Failed)
+			if updateErr := s.db.UpdateStatus(projectID, domain.Failed); updateErr != nil {
+				fmt.Printf("Error updating project status to failed: %v\n", updateErr)
+			}
+			continue
+		}
+
+		if err := s.db.UpdateStatus(projectID, domain.Deployed); err != nil {
+			fmt.Printf("Error updating project status to deployed: %v\n", err)
 		} else {
-			s.db.UpdateStatus(projectID, domain.Deployed)
 			s.deployedProjects[project.Name] = time.Now()
 			fmt.Println("Project deployed:", project.Name)
 
-			// Clean up local files after deploy
+			// Clean up local files after successful deployment
 			if err := s.cleanupLocalFiles(project); err != nil {
 				fmt.Printf("Error cleaning up local files: %v\n", err)
 			}
@@ -129,12 +140,13 @@ func (s *deployService) Deploy() {
 	}
 }
 
-// func to clean up local files
+// Function to clean up local files
 func (s *deployService) cleanupLocalFiles(project *domain.Project) error {
-	dir := project.ProjectDirectory
+	dir := filepath.Join("./projects", project.Name)
 	if err := os.RemoveAll(dir); err != nil {
 		return fmt.Errorf("failed to remove project directory: %v", err)
 	}
+	fmt.Printf("Cleaned up local files for project: %s\n", project.Name)
 	return nil
 }
 
@@ -152,19 +164,19 @@ func (s *deployService) cleanupOldDeployments() {
 	now := time.Now()
 	for projectName, deployTime := range s.deployedProjects {
 		if now.Sub(deployTime) > 1*time.Hour {
-			// Delete the project
+			// Get the project
 			project, err := s.db.GetProjectByName(projectName)
 			if err != nil {
 				fmt.Printf("Error getting project %s: %v\n", projectName, err)
 				continue
 			}
 
+			// Delete the project and all associated data
 			err = s.DeleteProject(project.ID)
 			if err != nil {
 				fmt.Printf("Error deleting project %s: %v\n", projectName, err)
 			} else {
 				fmt.Printf("Project %s deleted successfully\n", projectName)
-				delete(s.deployedProjects, projectName) // Remove from the map
 			}
 		}
 	}
@@ -354,19 +366,28 @@ func (s *deployService) getContentType(path string) string {
 
 // Function to add a DNS record using Cloudflare API
 func (s *deployService) AddDNSRecord(url, projectName string) error {
-	// Cloudflare API URL and token (replace with your actual API token and Zone ID)
-
 	cfg := config.LoadConfig()
 	apiToken := cfg.CloudflareApiToken
 	zoneID := cfg.CloudflareZoneId
-	fmt.Println(apiToken, zoneID, url, projectName, strings.Join(strings.Split(url, "/")[2:], "/"))
+
+	if apiToken == "" || zoneID == "" {
+		return fmt.Errorf("Cloudflare API token or Zone ID is missing")
+	}
+
+	// Extract the domain from the S3 URL
+	urlParts := strings.Split(url, "//")
+	if len(urlParts) < 2 {
+		return fmt.Errorf("invalid S3 URL format: %s", url)
+	}
+	domain := urlParts[1]
+
 	// DNS Record data
 	dnsRecord := map[string]interface{}{
 		"type":    "CNAME",
-		"name":    projectName + ".nymbus.xyz", // DNS name you want to add
-		"content": strings.Join(strings.Split(url, "/")[2:], "/"),
-		"ttl":     120,   // TTL in seconds
-		"proxied": false, // Whether to enable Cloudflare proxying
+		"name":    projectName,
+		"content": domain,
+		"ttl":     120,
+		"proxied": true,
 	}
 
 	// Serialize the DNS record to JSON
@@ -393,19 +414,30 @@ func (s *deployService) AddDNSRecord(url, projectName string) error {
 	}
 	defer resp.Body.Close()
 
-	// Check if the request was successful
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("failed to add DNS record, status: %d, body: %s", resp.StatusCode, string(bodyBytes))
-	}
-
-	// Read and print the response body
+	// Read the response body
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return fmt.Errorf("error reading response body: %w", err)
 	}
 
-	fmt.Println("DNS record added successfully:", string(bodyBytes))
+	// Check if the request was successful
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return fmt.Errorf("failed to add DNS record, status: %d, body: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	// Parse the response
+	var result map[string]interface{}
+	if err := json.Unmarshal(bodyBytes, &result); err != nil {
+		return fmt.Errorf("error parsing response: %w", err)
+	}
+
+	// Check if the operation was successful
+	success, ok := result["success"].(bool)
+	if !ok || !success {
+		return fmt.Errorf("Cloudflare API returned an unsuccessful response: %s", string(bodyBytes))
+	}
+
+	fmt.Printf("DNS record added successfully for %s.nymbus.xyz\n", projectName)
 	return nil
 }
 
@@ -416,16 +448,18 @@ func (s *deployService) DeleteProject(projectID uint) error {
 		return fmt.Errorf("failed to get project details: %w", err)
 	}
 
-	// Delete DNS record
-	err = s.deleteDNSRecord(project.Name)
-	if err != nil {
-		return fmt.Errorf("failed to delete DNS record: %w", err)
-	}
-
 	// Delete S3 bucket contents and the bucket itself
 	err = s.deleteS3Bucket(project.Name + ".nymbus.xyz")
 	if err != nil {
-		return fmt.Errorf("failed to delete S3 bucket: %w", err)
+		fmt.Printf("Warning: failed to delete S3 bucket: %v\n", err)
+		// Continue with deletion process even if S3 deletion fails
+	}
+
+	// Delete DNS record
+	err = s.deleteDNSRecord(project.Name)
+	if err != nil {
+		fmt.Printf("Warning: failed to delete DNS record: %v\n", err)
+		// Continue with deletion process even if DNS deletion fails
 	}
 
 	// Delete project from database
@@ -433,6 +467,9 @@ func (s *deployService) DeleteProject(projectID uint) error {
 	if err != nil {
 		return fmt.Errorf("failed to delete project from database: %w", err)
 	}
+
+	// Remove from deployedProjects map
+	delete(s.deployedProjects, project.Name)
 
 	return nil
 }

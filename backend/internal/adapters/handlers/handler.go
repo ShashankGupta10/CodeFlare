@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"codeflare/internal/config"
 	"codeflare/internal/core/domain"
 	"codeflare/internal/core/ports"
 	"codeflare/pkg/utils"
@@ -108,6 +109,17 @@ func (s *ApiHandler) ProjectStatusHandler(c echo.Context) error {
 }
 
 func (s *ApiHandler) DeleteProjectHandler(c echo.Context) error {
+	// Get the secret phrase from the environment or configuration
+	expectedSecret := config.LoadConfig().DeleteSecretPhrase
+
+	// Get the secret phrase from the request header
+	providedSecret := c.Request().Header.Get("X-Delete-Secret")
+
+	// Verify the secret phrase
+	if providedSecret != expectedSecret {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Unauthorized delete request"})
+	}
+
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
