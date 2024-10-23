@@ -160,9 +160,6 @@ function App() {
                 <span className="font-medium flex gap-4 items-center justify-center mx-auto">
                   {statusConfig.find((s) => s.status === status)?.icon}
                   {statusConfig.find((s) => s.status === status)?.text}
-                  {/* {status === 3 && (
-                    <a href={deployUrl} target="_blank">Deployed URL</a>
-                  )} */}
                 </span>
               </div>
                 <a
