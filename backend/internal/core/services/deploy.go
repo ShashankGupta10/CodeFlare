@@ -62,6 +62,7 @@ func (s *deployService) BuildRepo() {
 
 		if err != nil {
 			fmt.Printf("Error getting project: %v\n", err)
+
 			continue
 		}
 		fmt.Println("strarted building:", projectId)
@@ -71,6 +72,9 @@ func (s *deployService) BuildRepo() {
 		if err := s.buildProject(dir); err != nil {
 			fmt.Printf("Error building project: %v\n", err)
 			s.db.UpdateStatus(projectId, domain.Failed)
+			if err := s.DeleteProject(projectId); err != nil {
+				fmt.Println(err)
+			}
 			continue
 		}
 
@@ -96,6 +100,7 @@ func (s *deployService) buildProject(dir string) error {
 	buildCmd.Dir = dir
 	if output, err := buildCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to build project: %s, error: %v", string(output), err)
+
 	}
 
 	return nil
@@ -122,6 +127,9 @@ func (s *deployService) Deploy() {
 			fmt.Printf("Error deploying project: %v\n", err)
 			if updateErr := s.db.UpdateStatus(projectID, domain.Failed); updateErr != nil {
 				fmt.Printf("Error updating project status to failed: %v\n", updateErr)
+			}
+			if err := s.DeleteProject(project.ID); err != nil {
+				fmt.Println(err)
 			}
 			continue
 		}

@@ -69,8 +69,9 @@ func (s *ApiHandler) DeployHandler(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to clone repository"})
 	}
 
+	smallcaseName := strings.ToLower(projectName)
 	project := &domain.Project{
-		Name:             projectName,
+		Name:             smallcaseName,
 		RepoURL:          requestBody.RepoURL,
 		Status:           domain.NotStarted,
 		CreatedAt:        time.Now(),
