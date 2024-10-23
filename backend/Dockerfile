@@ -1,5 +1,5 @@
 FROM node:20.11.0-alpine3.14
-FROM go:1.22.0
+FROM go:1.22.8
 
 RUN MKDIR -p app
 WORKDIR /app
