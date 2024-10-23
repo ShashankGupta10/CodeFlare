@@ -1,5 +1,5 @@
 FROM node:20.11.0-alpine3.14
-FROM go:1.22-alpine
+FROM golang:1.22-alpine
 
 RUN mkdir -p /app
 WORKDIR /app
