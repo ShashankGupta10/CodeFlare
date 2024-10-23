@@ -1,7 +1,7 @@
 FROM node:20.11.0-alpine3.14
-FROM go:1.22.8
+FROM go:1.22-alpine
 
-RUN MKDIR -p app
+RUN mkdir -p /app
 WORKDIR /app
 
 COPY . .
