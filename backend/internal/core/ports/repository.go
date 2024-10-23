@@ -9,6 +9,7 @@ type Repository interface {
 	AutoMigrate() error
 	FindRepo(url string) (bool, error)
 	UpdateStatus(id uint, status domain.Status) error
+	UpdateDeployedURL(name string, deployed_url string) error
 	GetProject(id uint) (*domain.Project, error)
 	UpdateURL(id uint, url string) error
 	UpdateBuildURL(id uint, url string) error

@@ -438,6 +438,11 @@ func (s *deployService) AddDNSRecord(url, projectName string) error {
 	}
 
 	fmt.Printf("DNS record added successfully for %s.nymbus.xyz\n", projectName)
+	deployed_url := projectName + ".nymbus.xyz"
+	dbErr := s.db.UpdateDeployedURL(projectName, deployed_url)
+	if dbErr != nil {
+		return fmt.Errorf("Failed to update deployed URL")
+	}
 	return nil
 }
 

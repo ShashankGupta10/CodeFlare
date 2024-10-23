@@ -73,10 +73,14 @@ func (s *PGStore) UpdateURL(id uint, url string) error {
 func (s *PGStore) UpdateBuildURL(id uint, url string) error {
 	return s.db.Model(&domain.Project{}).Where("id = ?", id).Update("build_url", url).Error
 }
+
 func (s *PGStore) DeleteProject(projectID uint) error {
 	return s.db.Model(&domain.Project{}).Delete("id = ?", projectID).Error
 }
 
+func (s *PGStore) UpdateDeployedURL(name string, deployed_url string) error {
+	return s.db.Model(&domain.Project{}).Where("name = ?", name).Update("deployed_url", deployed_url).Error
+}
 func (s *PGStore) GetProjectByName(name string) (*domain.Project, error) {
 	var proj domain.Project
 	if err := s.db.Where("name = ?", name).First(&proj).Error; err != nil {
