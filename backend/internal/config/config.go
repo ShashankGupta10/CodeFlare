@@ -3,7 +3,6 @@ package config
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strconv"
 
 	"github.com/joho/godotenv"
@@ -20,14 +19,7 @@ type Config struct {
 }
 
 func LoadConfig() *Config {
-	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	environmentPath := filepath.Join(dir, "./../.env")
-
-	err = godotenv.Load(environmentPath)
+	err := godotenv.Load()
 	if err != nil {
 		fmt.Println("Error loading environment file")
 	}
