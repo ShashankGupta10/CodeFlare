@@ -6,6 +6,7 @@ import {
   CheckCircle,
   XCircle,
   Loader,
+  Cloudy
 } from "lucide-react";
 
 function App() {
@@ -94,17 +95,19 @@ function App() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#0d1016] bg-radial-dots flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          <div className="flex items-center justify-center space-x-2 mb-8">
-            <Rocket className="w-8 h-8 text-indigo-600" />
-            <h1 className="text-2xl font-bold text-gray-900">Nymbus Deploy</h1>
+        <div className="bg-slate-800 bg-opacity-15 backdrop-blur-lg border-2 border-gray-800 rounded-3xl shadow-xl p-8">
+          <div className="flex items-center justify-center space-x-2 mb-8 ">
+          <div className="">
+            <Cloudy className="w-8 h-8 text-slate-100" strokeWidth={3} /> 
+            </div>           
+          <h1 className="text-2xl font-bold text-gray-100">Nymbus Deploy</h1>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+          <form onSubmit={handleSubmit} className=" space-y-6">
+            <div className="">
+              <label className="block text-sm font-medium text-gray-100  mb-2">
                 <div className="flex items-center space-x-2">
                   <Github className="w-4 h-4" />
                   <span>GitHub Repository URL</span>
@@ -115,13 +118,13 @@ function App() {
                 value={githubUrl}
                 onChange={(e) => setGithubUrl(e.target.value)}
                 placeholder="https://github.com/username/repo"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-4 py-2 bg-slate-800 bg-opacity-15 backdrop-blur-lg border-2 border-gray-800 rounded-lg "
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-100 mb-2">
                 <div className="flex items-center space-x-2">
                   <Folder className="w-4 h-4" />
                   <span>Project Directory</span>
@@ -132,16 +135,17 @@ function App() {
                 value={directory}
                 onChange={(e) => setDirectory(e.target.value)}
                 placeholder="src"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-4 py-2w-full py-2 bg-slate-800 bg-opacity-15 backdrop-blur-lg border-2 border-gray-800 rounded-lg "
               />
             </div>
+            
 
             <button
               type="submit"
               disabled={
                 typeof status === "number" && status !== 3 && status !== 4
               }
-              className="w-full bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-grad font-bold tracking-normal hover:tracking-[0.15em] text-slate-900 py-2 px-4 rounded-lg hover:bg-opacity-50 transition-all duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {typeof status === "number" && status !== 3 && status !== 4 ? (
                 <span className="flex items-center justify-center space-x-2">

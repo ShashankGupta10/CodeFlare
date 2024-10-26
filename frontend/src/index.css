@@ -1,3 +1,16 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+.bg-radial-dots {
+        background-image: radial-gradient(circle, #d3d3d32d 1px, transparent 1px);
+        background-size: 40px 40px; 
+  }
+
+  .bg-grad {
+    background-image: url("../public/CS_Rectangle_1.svg");
+    background-size: cover; 
+    background-repeat: no-repeat; 
+    background-position: center; 
+  }
+
