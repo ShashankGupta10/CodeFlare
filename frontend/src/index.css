@@ -8,7 +8,7 @@
   }
 
   .bg-grad {
-    background-image: url("../public/CS_Rectangle_1.svg");
+    background-image: url("/CS_Rectangle_1.svg");
     background-size: cover; 
     background-repeat: no-repeat; 
     background-position: center; 

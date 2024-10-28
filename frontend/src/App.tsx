@@ -2,11 +2,13 @@ import React, { useState } from "react";
 import {
   Github,
   Folder,
-  Rocket,
   CheckCircle,
   XCircle,
   Loader,
-  Cloudy
+  Cloudy,
+  FolderSync,
+  Server,
+  CheckCheck
 } from "lucide-react";
 
 function App() {
@@ -69,22 +71,22 @@ function App() {
   const statusConfig = [
     {
       status: 0,
-      icon: <Loader className="w-5 h-5 text-yellow-500" />,
+      icon: <Loader className="w-5 h-5 text-green-400" />,
       text: "Preparing deployment...",
     },
     {
       status: 1,
-      icon: <CheckCircle className="w-5 h-5 text-yellow-500" />,
+      icon: <FolderSync className="w-5 h-5 text-yellow-500" />,
       text: "Building your project...",
     },
     {
       status: 2,
-      icon: <XCircle className="w-5 h-5 text-green-600" />,
+      icon: <Server className="w-5 h-5 text-green-600" />,
       text: "Deploying your project...",
     },
     {
       status: 3,
-      icon: <XCircle className="w-5 h-5 text-green-600" />,
+      icon: <CheckCheck className="w-5 h-5 text-green-600" />,
       text: "Deployed your project successfully!",
     },
     {
@@ -118,7 +120,7 @@ function App() {
                 value={githubUrl}
                 onChange={(e) => setGithubUrl(e.target.value)}
                 placeholder="https://github.com/username/repo"
-                className="w-full px-4 py-2 bg-slate-800 bg-opacity-15 backdrop-blur-lg border-2 border-gray-800 rounded-lg "
+                className="w-full px-4 py-2 text-slate-100 bg-slate-800 bg-opacity-15 backdrop-blur-lg border-2 border-gray-800 rounded-lg "
                 required
               />
             </div>
@@ -135,7 +137,7 @@ function App() {
                 value={directory}
                 onChange={(e) => setDirectory(e.target.value)}
                 placeholder="src"
-                className="w-full px-4 py-2w-full py-2 bg-slate-800 bg-opacity-15 backdrop-blur-lg border-2 border-gray-800 rounded-lg "
+                className="w-full px-4 text-slate-100 py-2w-full py-2 bg-slate-800 bg-opacity-15 backdrop-blur-lg border-2 border-gray-800 rounded-lg "
               />
             </div>
             
@@ -161,7 +163,7 @@ function App() {
           {typeof status === "number" && (
             <div className={`mt-6 p-4 rounded-lg`}>
               <div className="flex items-center space-x-2">
-                <span className="font-medium flex gap-4 items-center justify-center mx-auto">
+                <span className="font-medium  text-slate-100 flex gap-4 items-center justify-center mx-auto">
                   {statusConfig.find((s) => s.status === status)?.icon}
                   {statusConfig.find((s) => s.status === status)?.text}
                 </span>
@@ -172,7 +174,7 @@ function App() {
                   // rel="noopener noreferrer"
                   className="mt-2 text-indigo-600 hover:text-indigo-800 truncate flex justify-center items-center"
                 >
-                  https://{deployUrl}
+                  {deployUrl}
                 </a>
             </div>
           )}
