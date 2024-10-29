@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import {
   Github,
   Folder,
-  CheckCircle,
   XCircle,
   Loader,
   Cloudy,
@@ -10,6 +9,7 @@ import {
   Server,
   CheckCheck
 } from "lucide-react";
+import { BACKEND_URL } from "./config";
 
 function App() {
   const [githubUrl, setGithubUrl] = useState("");
@@ -21,7 +21,7 @@ function App() {
     const interval = setInterval(async () => {
       try {
         const response = await fetch(
-          `http://localhost:8080/project/${deployId}`,
+          `${BACKEND_URL}/project/${deployId}`,
           {
             headers: { "Content-Type": "application/json" },
             method: "GET",
@@ -48,7 +48,7 @@ function App() {
     e.preventDefault();
     setStatus(0);
     try {
-      const response = await fetch("http://localhost:8080/deploy", {
+      const response = await fetch(`${BACKEND_URL}/deploy`, {
         headers: { "Content-Type": "application/json" },
         method: "POST",
         body: JSON.stringify({
