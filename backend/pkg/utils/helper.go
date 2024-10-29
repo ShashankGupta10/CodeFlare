@@ -15,7 +15,15 @@ func GetFilePaths(repoPath string) ([]string, error) {
 
 	// DFS in development??? 😱
 	var filePaths []string
-	q := []string{repoPath + "/dist"}
+	var q []string
+	if _, err := os.Stat(repoPath + "/dist"); os.IsNotExist(err) {
+		if _, err := os.Stat(repoPath + "/build"); os.IsNotExist(err) {
+			return filePaths, fmt.Errorf("please deploy only react projects")
+		}
+		q = []string{repoPath + "/build"}
+	} else {
+		q = []string{repoPath + "/dist"}
+	}
 
 	for len(q) > 0 {
 		curr := q[0]
