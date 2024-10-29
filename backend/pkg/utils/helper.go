@@ -72,6 +72,7 @@ func ValidateURL(url string) error {
 
 func CloneRepo(url string) error {
 	repoName := strings.Split(url, "/")[4]
+	repoName = strings.ToLower(repoName)
 	destination := "./projects/"
 
 	_, err := git.PlainClone(destination+repoName+"/", false, &git.CloneOptions{
