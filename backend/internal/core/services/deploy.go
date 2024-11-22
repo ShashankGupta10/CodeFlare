@@ -62,12 +62,11 @@ func (s *deployService) BuildRepo() {
 
 		if err != nil {
 			fmt.Printf("Error getting project: %v\n", err)
-
 			continue
 		}
 		fmt.Println("strarted building:", projectId)
 
-		dir := "./projects/" + proj.Name + proj.ProjectDirectory
+		dir := "./projects/" + proj.Name + "/" + proj.ProjectDirectory
 
 		if err := s.buildProject(dir); err != nil {
 			fmt.Printf("Error building project: %v\n", err)
@@ -379,7 +378,7 @@ func (s *deployService) AddDNSRecord(url, projectName string) error {
 	zoneID := cfg.CloudflareZoneId
 
 	if apiToken == "" || zoneID == "" {
-		return fmt.Errorf("Cloudflare API token or Zone ID is missing")
+		return fmt.Errorf("CLOUDFLARE API TOKEN OR ZONE ID MISSING")
 	}
 
 	// Extract the domain from the S3 URL
