@@ -8,7 +8,7 @@ type Repository interface {
 	CreateProject(proj *domain.Project) (uint, error)
 	AutoMigrate() error
 	FindRepo(url string) (bool, error)
-	UpdateStatus(id uint, status domain.Status) error
+	UpdateStatus(id uint, status domain.Status, error_message string) error
 	UpdateDeployedURL(name string, deployed_url string) error
 	GetProject(id uint) (*domain.Project, error)
 	UpdateURL(id uint, url string) error

@@ -51,9 +51,10 @@ func (s *PGStore) CreateProject(proj *domain.Project) (uint, error) {
 	return proj.ID, nil
 }
 
-func (s *PGStore) UpdateStatus(id uint, status domain.Status) error {
+func (s *PGStore) UpdateStatus(id uint, status domain.Status, error_message string) error {
 	return s.db.Model(&domain.Project{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"status":     status,
+		"error_message": error_message,
 		"updated_at": time.Now(),
 	}).Error
 }

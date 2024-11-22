@@ -79,6 +79,7 @@ func (s *ApiHandler) DeployHandler(c echo.Context) error {
 		BuildURL:         "",
 		URL:              "",
 		ProjectDirectory: requestBody.ProjectDirectory,
+		ErrorMessage: "",
 	}
 
 	projectID, err := s.DeployService.CreateProject(project)
@@ -87,7 +88,6 @@ func (s *ApiHandler) DeployHandler(c echo.Context) error {
 	}
 
 	s.DeployService.QueueBuild(projectID)
-
 	return c.JSON(http.StatusAccepted, map[string]interface{}{
 		"message": "Deployment queued",
 		"id":      projectID,

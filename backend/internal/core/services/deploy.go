@@ -62,22 +62,21 @@ func (s *deployService) BuildRepo() {
 
 		if err != nil {
 			fmt.Printf("Error getting project: %v\n", err)
+			s.db.UpdateStatus(projectId, domain.Failed, "Project not found")
 			continue
 		}
-		fmt.Println("strarted building:", projectId)
 
+		fmt.Println("strarted building:", projectId)
 		dir := "./projects/" + proj.Name + "/" + proj.ProjectDirectory
 
 		if err := s.buildProject(dir); err != nil {
 			fmt.Printf("Error building project: %v\n", err)
-			s.db.UpdateStatus(projectId, domain.Failed)
-			if err := s.DeleteProject(projectId); err != nil {
-				fmt.Println(err)
-			}
+			s.db.UpdateStatus(projectId, domain.Failed, "Error building react project")
+			s.DeleteProject(projectId);
 			continue
 		}
 
-		s.db.UpdateStatus(projectId, domain.Building)
+		s.db.UpdateStatus(projectId, domain.Building, "")
 		fmt.Println("project qd for deployment:", projectId)
 		s.deployQ <- projectId
 	}
@@ -114,33 +113,32 @@ func (s *deployService) Deploy() {
 			fmt.Printf("Error getting project: %v\n", err)
 			continue
 		}
+
 		fmt.Println("Deploying project:", projectID)
-
-		if err := s.db.UpdateStatus(projectID, domain.Deploying); err != nil {
-			fmt.Printf("Error updating project status to deploying: %v\n", err)
-			continue
-		}
-
+		s.db.UpdateStatus(projectID, domain.Deploying, "");
 		err = s.deployProject(project)
+
 		if err != nil {
 			fmt.Printf("Error deploying project: %v\n", err)
-			if updateErr := s.db.UpdateStatus(projectID, domain.Failed); updateErr != nil {
-				fmt.Printf("Error updating project status to failed: %v\n", updateErr)
-			}
+			s.CleanupLocalFiles(project)
+			s.db.UpdateStatus(projectID, domain.Failed, err.Error());
 			if err := s.DeleteProject(project.ID); err != nil {
 				fmt.Println(err)
 			}
 			continue
 		}
 
-		if err := s.db.UpdateStatus(projectID, domain.Deployed); err != nil {
+		if err := s.db.UpdateStatus(projectID, domain.Deployed, ""); err != nil {
 			fmt.Printf("Error updating project status to deployed: %v\n", err)
+			if cleanupLocalFilesErr := s.CleanupLocalFiles(project); cleanupLocalFilesErr != nil {
+				fmt.Printf("Error cleaning up local files: %v\n", err)
+			}
 		} else {
 			s.deployedProjects[project.Name] = time.Now()
 			fmt.Println("Project deployed:", project.Name)
 
 			// Clean up local files after successful deployment
-			if err := s.cleanupLocalFiles(project); err != nil {
+			if err := s.CleanupLocalFiles(project); err != nil {
 				fmt.Printf("Error cleaning up local files: %v\n", err)
 			}
 		}
@@ -148,7 +146,7 @@ func (s *deployService) Deploy() {
 }
 
 // Function to clean up local files
-func (s *deployService) cleanupLocalFiles(project *domain.Project) error {
+func (s *deployService) CleanupLocalFiles(project *domain.Project) error {
 	dir := filepath.Join("./projects", project.Name)
 	if err := os.RemoveAll(dir); err != nil {
 		return fmt.Errorf("failed to remove project directory: %v", err)
@@ -206,7 +204,7 @@ func (s *deployService) deployProject(project *domain.Project) error {
 		return err
 	}
 	fmt.Println("bucket there")
-	buildDir := "./projects/" + project.Name + project.ProjectDirectory
+	buildDir := "./projects/" + project.Name + "/" + project.ProjectDirectory
 	staticSiteURL, err := s.uploadFiles(svc, buildDir, bucket)
 	if err != nil {
 		return err
@@ -441,14 +439,14 @@ func (s *deployService) AddDNSRecord(url, projectName string) error {
 	// Check if the operation was successful
 	success, ok := result["success"].(bool)
 	if !ok || !success {
-		return fmt.Errorf("Cloudflare API returned an unsuccessful response: %s", string(bodyBytes))
+		return fmt.Errorf("cloudflare API returned an unsuccessful response: %s", string(bodyBytes))
 	}
 
 	fmt.Printf("DNS record added successfully for %s.nymbus.xyz\n", projectName)
 	deployed_url := projectName + ".nymbus.xyz"
 	dbErr := s.db.UpdateDeployedURL(projectName, deployed_url)
 	if dbErr != nil {
-		return fmt.Errorf("Failed to update deployed URL")
+		return fmt.Errorf("failed to update deployed URL")
 	}
 	return nil
 }

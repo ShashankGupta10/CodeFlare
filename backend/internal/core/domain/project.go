@@ -23,4 +23,5 @@ type Project struct {
 	CreatedAt        time.Time `gorm:"created_at" json:"created_at"`
 	UpdatedAt        time.Time `gorm:"updated_at" json:"updated_at"`
 	DeployedURL      string    `gorm:"deployed_url" json:"deployed_url"`
+	ErrorMessage     string    `gorm:"error_message" json:"error_message"`
 }

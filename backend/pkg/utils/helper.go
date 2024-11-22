@@ -12,7 +12,6 @@ import (
 )
 
 func GetFilePaths(repoPath string) ([]string, error) {
-
 	// DFS in development??? 😱
 	var filePaths []string
 	var q []string

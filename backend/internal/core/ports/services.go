@@ -12,4 +12,5 @@ type DeployService interface {
 	CreateProject(*domain.Project) (uint, error)
 	QueueBuild(uint)
 	GetProject(uint) (*domain.Project, error)
+	CleanupLocalFiles(*domain.Project) error 
 }

@@ -20,9 +20,9 @@ func main() {
 		log.Fatal("error initializing database:", err)
 	}
 
-	// if err := db.AutoMigrate(); err != nil {
-	// 	log.Fatal("migration error:", err)
-	// }
+	if err := db.AutoMigrate(); err != nil {
+		log.Fatal("migration error:", err)
+	}
 
 	deployService := services.NewDeployService(db, 5)
 	h := handlers.NewApiHandler(deployService)
@@ -46,3 +46,4 @@ func main() {
 
 	e.Logger.Fatal(e.Start(fmt.Sprintf(":%d", cfg.ServerPort)))
 }
+
