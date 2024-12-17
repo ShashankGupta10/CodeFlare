@@ -11,17 +11,14 @@ import (
 	"github.com/go-git/go-git/v5"
 )
 
-func GetFilePaths(repoPath string) ([]string, error) {
+func GetFilePaths(repoPath string, buildDir string) ([]string, error) {
 	// DFS in development??? 😱
 	var filePaths []string
 	var q []string
-	if _, err := os.Stat(repoPath + "/dist"); os.IsNotExist(err) {
-		if _, err := os.Stat(repoPath + "/build"); os.IsNotExist(err) {
-			return filePaths, fmt.Errorf("please deploy only react projects")
-		}
-		q = []string{repoPath + "/build"}
+	if _, err := os.Stat(repoPath + "/" + buildDir); os.IsNotExist(err) {
+		return filePaths, fmt.Errorf("please deploy only react projects")
 	} else {
-		q = []string{repoPath + "/dist"}
+		q = []string{repoPath + "/" + buildDir}
 	}
 
 	for len(q) > 0 {
@@ -46,6 +43,9 @@ func GetFilePaths(repoPath string) ([]string, error) {
 }
 
 func ValidateURL(url string) error {
+	if url == "" {
+		return fmt.Errorf("invalid repo_url")
+	}
 	parts := strings.Split(url, "/")
 	owner := parts[len(parts)-2]
 	repo := parts[len(parts)-1]
@@ -74,11 +74,11 @@ func CloneRepo(url string) error {
 	repoName = strings.ToLower(repoName)
 	destination := "./projects/"
 
-	_, err := git.PlainClone(destination+repoName+"/", false, &git.CloneOptions{
+	_, err := git.PlainClone(destination + repoName + "/", false, &git.CloneOptions{
 		URL:      url,
 		Progress: nil,
 	})
-	fmt.Println("cloned")
+	fmt.Println("cloned repo: ", url)
 	if err != nil {
 		return fmt.Errorf("failed to clone repo: %v", err)
 	}

@@ -27,16 +27,28 @@ import (
 
 type deployService struct {
 	db               ports.Repository
-	buildQ           chan uint
-	deployQ          chan uint
+	buildQ           chan BuildRequest
+	deployQ          chan DeployRequest
 	deployedProjects map[string]time.Time
+}
+
+type BuildRequest struct {
+	ProjectID      uint
+	InstallCommand string
+	BuildCommand   string
+	BuildDir       string
+}
+
+type DeployRequest struct {
+	ProjectID uint
+	BuildDir  string
 }
 
 func NewDeployService(db ports.Repository, chsize int) ports.DeployService {
 	return &deployService{
 		db:               db,
-		buildQ:           make(chan uint, chsize),
-		deployQ:          make(chan uint, chsize),
+		buildQ:           make(chan BuildRequest, chsize),
+		deployQ:          make(chan DeployRequest, chsize),
 		deployedProjects: make(map[string]time.Time),
 	}
 }
@@ -50,51 +62,69 @@ func (s *deployService) AlreadyDeployed(url string) (bool, error) {
 }
 
 // Add this method to queue builds
-func (s *deployService) QueueBuild(projectID uint) {
-	s.buildQ <- projectID
+func (s *deployService) QueueBuild(projectID uint, installCommand string, buildCommand string, buildDir string) {
+	buildRequest := BuildRequest{
+		ProjectID:      projectID,
+		InstallCommand: installCommand,
+		BuildCommand:   buildCommand,
+		BuildDir:       buildDir,
+	}
+	s.buildQ <- buildRequest
 }
 
 // Modify BuildRepo to push to deployQ after successful build
 func (s *deployService) BuildRepo() {
 	for {
-		projectId := <-s.buildQ
-		proj, err := s.db.GetProject(projectId)
+		buildRequest := <-s.buildQ
+		proj, err := s.db.GetProject(buildRequest.ProjectID)
 
 		if err != nil {
 			fmt.Printf("Error getting project: %v\n", err)
-			s.db.UpdateStatus(projectId, domain.Failed, "Project not found")
+			s.db.UpdateStatus(buildRequest.ProjectID, domain.Failed, "Project not found")
 			continue
 		}
 
-		fmt.Println("strarted building:", projectId)
+		fmt.Println("strarted building:", buildRequest.ProjectID)
 		dir := "./projects/" + proj.Name + "/" + proj.ProjectDirectory
 
-		if err := s.buildProject(dir); err != nil {
+		if err := s.buildProject(dir, buildRequest.InstallCommand, buildRequest.BuildCommand); err != nil {
 			fmt.Printf("Error building project: %v\n", err)
-			s.db.UpdateStatus(projectId, domain.Failed, "Error building react project")
-			s.DeleteProject(projectId);
+			s.db.UpdateStatus(buildRequest.ProjectID, domain.Failed, "Error building react project")
+			s.DeleteProject(buildRequest.ProjectID)
 			continue
 		}
 
-		s.db.UpdateStatus(projectId, domain.Building, "")
-		fmt.Println("project qd for deployment:", projectId)
-		s.deployQ <- projectId
+		s.db.UpdateStatus(buildRequest.ProjectID, domain.Building, "")
+		fmt.Println("project qd for deployment:", buildRequest.ProjectID)
+		deployRequest := DeployRequest{
+			ProjectID: buildRequest.ProjectID,
+			BuildDir:  buildRequest.BuildDir,
+		}
+		s.deployQ <- deployRequest
 	}
 }
 
 // Add this method to build the project
-func (s *deployService) buildProject(dir string) error {
+func (s *deployService) buildProject(dir string, installCommand string, buildCommand string) error {
 	// Install dependencies
-	fmt.Println("npm i")
-	installCmd := exec.Command("npm", "install")
+	installArgs := strings.Fields(installCommand)
+	if len(installArgs) == 0 {
+		return fmt.Errorf("invalid install command: %s", installCommand)
+	}
+	fmt.Println("Installing Dependencies...")
+
+	installCmd := exec.Command(installArgs[0], installArgs[1:]...)
 	installCmd.Dir = dir
 	if output, err := installCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to install dependencies: %s, error: %v", string(output), err)
 	}
 
-	// Build the project
-	buildCmd := exec.Command("npm", "run", "build")
-	fmt.Println("npm build")
+	buildArgs := strings.Fields(buildCommand)
+	if len(buildArgs) == 0 {
+		return fmt.Errorf("invalid build command: %s", buildCommand)
+	}
+	fmt.Println("Creating build...")
+	buildCmd := exec.Command(buildArgs[0], buildArgs[1:]...)
 	buildCmd.Dir = dir
 	if output, err := buildCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to build project: %s, error: %v", string(output), err)
@@ -107,28 +137,28 @@ func (s *deployService) buildProject(dir string) error {
 // Deploy
 func (s *deployService) Deploy() {
 	for {
-		projectID := <-s.deployQ
-		project, err := s.db.GetProject(projectID)
+		deployRequest := <-s.deployQ
+		project, err := s.db.GetProject(deployRequest.ProjectID)
 		if err != nil {
 			fmt.Printf("Error getting project: %v\n", err)
 			continue
 		}
 
-		fmt.Println("Deploying project:", projectID)
-		s.db.UpdateStatus(projectID, domain.Deploying, "");
-		err = s.deployProject(project)
+		fmt.Println("Deploying project:", deployRequest.ProjectID)
+		s.db.UpdateStatus(deployRequest.ProjectID, domain.Deploying, "")
+		err = s.deployProject(project, deployRequest.BuildDir)
 
 		if err != nil {
 			fmt.Printf("Error deploying project: %v\n", err)
 			s.CleanupLocalFiles(project)
-			s.db.UpdateStatus(projectID, domain.Failed, err.Error());
+			s.db.UpdateStatus(deployRequest.ProjectID, domain.Failed, err.Error())
 			if err := s.DeleteProject(project.ID); err != nil {
 				fmt.Println(err)
 			}
 			continue
 		}
 
-		if err := s.db.UpdateStatus(projectID, domain.Deployed, ""); err != nil {
+		if err := s.db.UpdateStatus(deployRequest.ProjectID, domain.Deployed, ""); err != nil {
 			fmt.Printf("Error updating project status to deployed: %v\n", err)
 			if cleanupLocalFilesErr := s.CleanupLocalFiles(project); cleanupLocalFilesErr != nil {
 				fmt.Printf("Error cleaning up local files: %v\n", err)
@@ -187,7 +217,7 @@ func (s *deployService) cleanupOldDeployments() {
 	}
 }
 
-func (s *deployService) deployProject(project *domain.Project) error {
+func (s *deployService) deployProject(project *domain.Project, buildDir string) error {
 	cfg, err := awsConfig.LoadDefaultConfig(context.TODO(), awsConfig.WithRegion("ap-south-1"))
 	if err != nil {
 		return fmt.Errorf("failed to load AWS configuration: %v", err)
@@ -204,8 +234,8 @@ func (s *deployService) deployProject(project *domain.Project) error {
 		return err
 	}
 	fmt.Println("bucket there")
-	buildDir := "./projects/" + project.Name + "/" + project.ProjectDirectory
-	staticSiteURL, err := s.uploadFiles(svc, buildDir, bucket)
+	projectDir := "./projects/" + project.Name + "/" + project.ProjectDirectory
+	staticSiteURL, err := s.uploadFiles(svc, projectDir, bucket, buildDir)
 	if err != nil {
 		return err
 	}
@@ -310,8 +340,8 @@ func (s *deployService) setPublicAccessPolicy(svc *s3.Client, bucket string) err
 	return err
 }
 
-func (s *deployService) uploadFiles(svc *s3.Client, dir, bucket string) (string, error) {
-	files, err := utils.GetFilePaths(dir)
+func (s *deployService) uploadFiles(svc *s3.Client, dir, bucket string, buildDir string) (string, error) {
+	files, err := utils.GetFilePaths(dir, buildDir)
 	if err != nil {
 		return "", fmt.Errorf("failed to get file paths: %v", err)
 	}

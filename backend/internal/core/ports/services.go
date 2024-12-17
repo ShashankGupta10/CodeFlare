@@ -10,7 +10,7 @@ type DeployService interface {
 	AddDNSRecord(string, string) error
 	DeleteProject(uint) error
 	CreateProject(*domain.Project) (uint, error)
-	QueueBuild(uint)
+	QueueBuild(uint, string, string, string)
 	GetProject(uint) (*domain.Project, error)
 	CleanupLocalFiles(*domain.Project) error 
 }

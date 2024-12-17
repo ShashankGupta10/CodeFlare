@@ -34,6 +34,9 @@ func (s *ApiHandler) DeployHandler(c echo.Context) error {
 	var requestBody struct {
 		RepoURL          string `json:"repo_url"`
 		ProjectDirectory string `json:"project_directory"`
+		InstallCommand   string `json:"install_command"`
+		BuildCommand     string `json:"build_command"`
+		BuildDir		 string `json:"build_dir"`
 	}
 
 	if err := c.Bind(&requestBody); err != nil {
@@ -79,7 +82,7 @@ func (s *ApiHandler) DeployHandler(c echo.Context) error {
 		BuildURL:         "",
 		URL:              "",
 		ProjectDirectory: requestBody.ProjectDirectory,
-		ErrorMessage: "",
+		ErrorMessage:     "",
 	}
 
 	projectID, err := s.DeployService.CreateProject(project)
@@ -87,7 +90,7 @@ func (s *ApiHandler) DeployHandler(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to create project"})
 	}
 
-	s.DeployService.QueueBuild(projectID)
+	s.DeployService.QueueBuild(projectID, requestBody.InstallCommand, requestBody.BuildCommand, requestBody.BuildDir)
 	return c.JSON(http.StatusAccepted, map[string]interface{}{
 		"message": "Deployment queued",
 		"id":      projectID,

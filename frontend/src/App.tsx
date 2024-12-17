@@ -7,13 +7,18 @@ import {
   Cloudy,
   FolderSync,
   Server,
-  CheckCheck
+  CheckCheck,
+  Hexagon,
+  Hammer
 } from "lucide-react";
 import { BACKEND_URL } from "./config";
 
 function App() {
   const [githubUrl, setGithubUrl] = useState("");
   const [directory, setDirectory] = useState("");
+  const [installCommand, setInstallCommand] = useState("");
+  const [buildCommand, setBuildCommand] = useState("");
+  const [buildDir, setBuildDir] = useState("");
   const [status, setStatus] = useState<number | null>(null);
   const [deployUrl, setDeployUrl] = useState("");
 
@@ -54,6 +59,9 @@ function App() {
         body: JSON.stringify({
           repo_url: githubUrl,
           project_directory: directory,
+          install_command: installCommand,
+          build_command: buildCommand,
+          build_dir: buildDir
         }),
       });
       const result = await response.json();
@@ -137,6 +145,51 @@ function App() {
                 value={directory}
                 onChange={(e) => setDirectory(e.target.value)}
                 placeholder="src"
+                className="w-full px-4 text-slate-100 py-2w-full py-2 bg-slate-800 bg-opacity-15 backdrop-blur-lg border-2 border-gray-800 rounded-lg "
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-100 mb-2">
+                <div className="flex items-center space-x-2">
+                  <Hexagon className="w-4 h-4" />
+                  <span>Install Command</span>
+                </div>
+              </label>
+              <input
+                type="text"
+                value={installCommand}
+                onChange={(e) => setInstallCommand(e.target.value)}
+                placeholder="`npm install` or `pnpm install` or `yarn`"
+                className="w-full px-4 text-slate-100 py-2w-full py-2 bg-slate-800 bg-opacity-15 backdrop-blur-lg border-2 border-gray-800 rounded-lg "
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-100 mb-2">
+                <div className="flex items-center space-x-2">
+                  <Hammer className="w-4 h-4" />
+                  <span>Build Command</span>
+                </div>
+              </label>
+              <input
+                type="text"
+                value={buildCommand}
+                onChange={(e) => setBuildCommand(e.target.value)}
+                placeholder="`npm build` or `pnpm build` or `yarn build`"
+                className="w-full px-4 text-slate-100 py-2w-full py-2 bg-slate-800 bg-opacity-15 backdrop-blur-lg border-2 border-gray-800 rounded-lg "
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-100 mb-2">
+                <div className="flex items-center space-x-2">
+                  <Folder className="w-4 h-4" />
+                  <span>Build Directory</span>
+                </div>
+              </label>
+              <input
+                type="text"
+                value={buildDir}
+                onChange={(e) => setBuildDir(e.target.value)}
+                placeholder="`dist` or `build`"
                 className="w-full px-4 text-slate-100 py-2w-full py-2 bg-slate-800 bg-opacity-15 backdrop-blur-lg border-2 border-gray-800 rounded-lg "
               />
             </div>
